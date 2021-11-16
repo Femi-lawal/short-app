@@ -22,6 +22,16 @@ class ShortUrl < ApplicationRecord
   private
 
   def validate_full_url
+    return errors.add(:full_url, "can't be blank") unless full_url
+
+    begin
+      parsed_url = URI.parse(full_url)
+      errors.add(:full_url, 'url must conform to http or https') unless parsed_url.is_a?(URI::HTTP)
+    rescue URI::InvalidURIError
+      errors.add(:full_url, 'Full url is not a valid url')
+    end
+    url_regex = %r{^((http|https)://)?[a-z0-9]+([\-.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(/.*)?$}ix
+    errors.add(:full_url, 'Full url is not a valid url') unless full_url.match(url_regex)
   end
 
 end
