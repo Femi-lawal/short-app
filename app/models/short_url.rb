@@ -16,6 +16,10 @@ class ShortUrl < ApplicationRecord
     short_url.reverse.join
   end
 
+  def update_count!
+    increment!(:click_count)
+  end
+
   def update_title!
   end
 
