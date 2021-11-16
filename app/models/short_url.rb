@@ -1,4 +1,5 @@
 class ShortUrl < ApplicationRecord
+  after_create :update_title!
 
   CHARACTERS = [*'0'..'9', *'a'..'z', *'A'..'Z'].freeze
 
@@ -21,6 +22,7 @@ class ShortUrl < ApplicationRecord
   end
 
   def update_title!
+    UpdateTitleJob.perform_later(id)
   end
 
   private
