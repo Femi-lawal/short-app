@@ -1,5 +1,6 @@
 class ShortUrl < ApplicationRecord
   after_create :update_title!
+  scope :most_popular, -> { order(click_count: :desc).limit(100) }
 
   CHARACTERS = [*'0'..'9', *'a'..'z', *'A'..'Z'].freeze
 
