@@ -30,3 +30,7 @@
 # Checking your short URL redirect
 
     curl -I localhost:3000/abc
+
+# Algorithm
+- The Algorithm that was implemented converts the id of the ShortUrl object into a Base62 short_code
+- References: https://en.wikipedia.org/wiki/URL_shortening#Techniques
