@@ -1,74 +1,225 @@
-version: '3'
+# ==============================================================================
+# Development Docker Compose
+# Complete stack with Rails, Sidekiq, MariaDB, Redis, Prometheus, Grafana, OTEL
+# ==============================================================================
+
+version: '3.8'
+
 services:
-  short-app:
-    image: short-app
-    build: .
+  # ============================================================================
+  # Rails Application
+  # ============================================================================
+  app:
+    build:
+      context: .
+      target: development
+    image: short-app:dev
+    container_name: short_app
     stdin_open: true
     tty: true
-    command: bin/rails server --port 3000 --binding 0.0.0.0
-    env_file: ./dev.env
-    ports:
-    - "3000:3000"
-    depends_on:
-    - mariadb
-    - redis_dev
-    - webpacker
-    networks:
-    - app
-    working_dir: /app
-    volumes:
-    - .:/app
+    command: >
+      bash -c "
+        bundle check || bundle install &&
+        bin/rails db:prepare &&
+        bin/rails server -b 0.0.0.0 -p 3000
+      "
     environment:
-      - WEBPACKER_DEV_SERVER_HOST=webpacker
-
-  worker:
-    image: short-app
-    command: bundle exec rake resque:work
-    env_file: ./dev.env
-    working_dir: /app
-    volumes:
-    - .:/app:cached
-    depends_on:
-    - mariadb
-    - redis_dev
-    networks:
-    - app
-
-  mariadb:
-    image: mariadb
-    container_name: short_app_mariadb_dev
-    volumes:
-    - data-mysql:/var/lib/mysql
-    - ./mysql:/docker-entrypoint-initdb.d:ro
-    environment:
-    - MYSQL_ROOT_PASSWORD=password
-    - MYSQL_DATABASE=short_development
-    networks:
-    - app
-    ports:
-    - 3307:3306
-
-  redis_dev:
-    image: redis
-    container_name: redis_dev
-    networks:
-    - app
-
-  webpacker:
-    image: short-app
-    environment:
-      - NODE_ENV=development
       - RAILS_ENV=development
-      - WEBPACKER_DEV_SERVER_HOST=0.0.0.0
-    command: ./bin/webpack-dev-server --port 3035 --binding 0.0.0.0
-    volumes:
-      - .:/short-app
+      - DATABASE_URL=mysql2://root:password@mariadb:3306/short_development
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY_BASE=development_secret_key_base_not_for_production
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_SERVICE_NAME=short-app
+      - OTEL_TRACES_EXPORTER=otlp
+      - PROMETHEUS_EXPORTER_HOST=0.0.0.0
     ports:
-      - '3035:3035'
+      - "3000:3000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app
+    volumes:
+      - .:/app
+      - bundle_cache:/usr/local/bundle
+      - node_modules:/app/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
+  # ============================================================================
+  # Sidekiq Background Worker
+  # ============================================================================
+  worker:
+    build:
+      context: .
+      target: development
+    image: short-app:dev
+    container_name: short_app_worker
+    command: >
+      bash -c "
+        bundle check || bundle install &&
+        bundle exec sidekiq -C config/sidekiq.yml
+      "
+    environment:
+      - RAILS_ENV=development
+      - DATABASE_URL=mysql2://root:password@mariadb:3306/short_development
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY_BASE=development_secret_key_base_not_for_production
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_SERVICE_NAME=short-app-worker
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app
+    volumes:
+      - .:/app
+      - bundle_cache:/usr/local/bundle
+
+  # ============================================================================
+  # MariaDB Database
+  # ============================================================================
+  mariadb:
+    image: mariadb:10.11
+    container_name: short_app_mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=short_development
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ============================================================================
+  # Redis (Cache + Sidekiq Queue)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: short_app_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # Prometheus (Metrics Collection)
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: short_app_prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - app
+    depends_on:
+      - app
+
+  # ============================================================================
+  # Grafana (Visualization & Dashboards)
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: short_app_grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    networks:
+      - app
+    depends_on:
+      - prometheus
+
+  # ============================================================================
+  # OpenTelemetry Collector
+  # ============================================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.88.0
+    container_name: short_app_otel
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./monitoring/otel-collector.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus exporter
+    networks:
+      - app
+
+  # ============================================================================
+  # Jaeger (Distributed Tracing UI)
+  # ============================================================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    container_name: short_app_jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector
+    networks:
+      - app
+
+# ============================================================================
+# Volumes
+# ============================================================================
 volumes:
-  data-mysql:
+  mariadb_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  bundle_cache:
+    driver: local
+  node_modules:
     driver: local
 
+# ============================================================================
+# Networks - All services share the same network namespace
+# ============================================================================
 networks:
   app:
+    name: short-app-network
+    driver: bridge
+
