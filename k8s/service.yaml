@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: short-app
+  labels:
+    app: short-app
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: short-app
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: short-app
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: short.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: short-app
+                port:
+                  number: 80
