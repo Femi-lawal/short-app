@@ -1,0 +1,131 @@
+<% content_for :title, 'ShortApp - Modern URL Shortener' %>
+
+<nav class="nav">
+  <a href="/" class="nav-brand">
+    <i class="fas fa-link"></i>
+    <span>ShortApp</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="/admin/sidekiq" target="_blank">Admin</a></li>
+  </ul>
+</nav>
+
+<main class="hero">
+  <div class="hero-badge">
+    <i class="fas fa-sparkles"></i>
+    <span>Enterprise-grade URL shortening</span>
+  </div>
+  
+  <h1>
+    Shorten Your Links,<br>
+    <span>Amplify Your Reach</span>
+  </h1>
+  
+  <p class="hero-description">
+    Create branded short links, track analytics, and manage your URLs 
+    with our powerful, modern platform.
+  </p>
+  
+  <div class="shortener-card">
+    <form id="shorten-form">
+      <div class="input-group">
+        <div class="input-wrapper">
+          <i class="fas fa-globe"></i>
+          <input type="url" id="url-input" name="url" placeholder="Enter your long URL here..." required>
+        </div>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-bolt"></i> Shorten
+        </button>
+      </div>
+      
+      <div class="advanced-toggle" onclick="toggleAdvanced()">
+        <i class="fas fa-chevron-down"></i>
+        <span>Advanced options</span>
+      </div>
+      
+      <div class="advanced-options">
+        <div class="form-group">
+          <label for="custom-alias">Custom alias (optional)</label>
+          <input type="text" id="custom-alias" name="custom_alias" placeholder="my-custom-link">
+        </div>
+        <div class="form-group">
+          <label for="expires-at">Expiration date (optional)</label>
+          <input type="datetime-local" id="expires-at" name="expires_at">
+        </div>
+      </div>
+    </form>
+    
+    <div id="result" class="result">
+      <div class="result-header">
+        <i class="fas fa-check-circle"></i>
+        <h3>Your short URL is ready!</h3>
+      </div>
+      <div class="short-url-display">
+        <a href="#" id="short-url-link" target="_blank"></a>
+        <button class="btn-copy" onclick="copyToClipboard(document.getElementById('short-url-link').href, this)">
+          <i class="fas fa-copy"></i> Copy
+        </button>
+      </div>
+    </div>
+    
+    <div id="error" class="error-message"></div>
+  </div>
+</main>
+
+<section class="stats">
+  <div class="stat">
+    <div class="stat-value"><%= number_with_delimiter(@stats[:total_urls]) %></div>
+    <div class="stat-label">URLs Shortened</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value"><%= number_with_delimiter(@stats[:total_clicks]) %></div>
+    <div class="stat-label">Total Clicks</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value"><%= @stats[:urls_today] %></div>
+    <div class="stat-label">URLs Today</div>
+  </div>
+</section>
+
+<section id="features" class="features">
+  <div class="feature-card">
+    <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+    <h3>Detailed Analytics</h3>
+    <p>Track clicks, referrers, and geographic data with our comprehensive analytics dashboard.</p>
+  </div>
+  
+  <div class="feature-card">
+    <div class="feature-icon"><i class="fas fa-magic"></i></div>
+    <h3>Custom Aliases</h3>
+    <p>Create memorable, branded short links with custom aliases that reflect your brand.</p>
+  </div>
+  
+  <div class="feature-card">
+    <div class="feature-icon"><i class="fas fa-clock"></i></div>
+    <h3>Link Expiration</h3>
+    <p>Set expiration dates for your links to maintain control over content access.</p>
+  </div>
+  
+  <div class="feature-card">
+    <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+    <h3>Secure & Fast</h3>
+    <p>Enterprise-grade security with lightning-fast redirects powered by Redis caching.</p>
+  </div>
+  
+  <div class="feature-card">
+    <div class="feature-icon"><i class="fas fa-code"></i></div>
+    <h3>RESTful API</h3>
+    <p>Integrate URL shortening into your apps with our well-documented REST API.</p>
+  </div>
+  
+  <div class="feature-card">
+    <div class="feature-icon"><i class="fas fa-tachometer-alt"></i></div>
+    <h3>Rate Limiting</h3>
+    <p>Built-in rate limiting protects against abuse while ensuring fair usage.</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Built with <i class="fas fa-heart" style="color: #ef4444;"></i> using Ruby on Rails</p>
+</footer>
