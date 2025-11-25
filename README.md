@@ -41,20 +41,13 @@ Real-time statistics showing total URLs shortened, click counts, and today's act
 ### Features Grid
 Six feature cards highlighting the application's capabilities.
 
-![Features Section](e2e/screenshots/05-features-section.png)
+![Features Section](e2e/screenshots/05-features.png)
 
-### Responsive Design
-Fully responsive layout that works on mobile, tablet, and desktop.
+### Full Page & Mobile View
 
-| Mobile | Tablet |
-|--------|--------|
-| ![Mobile View](e2e/screenshots/12-mobile-view.png) | ![Tablet View](e2e/screenshots/13-tablet-view.png) |
-
-### Admin & Monitoring
-
-| Sidekiq Dashboard | Prometheus Metrics |
-|-------------------|-------------------|
-| ![Sidekiq](e2e/screenshots/01-sidekiq-dashboard.png) | ![Metrics](e2e/screenshots/11-prometheus-metrics.png) |
+| Full Page | Mobile |
+|-----------|--------|
+| ![Full Page](e2e/screenshots/06-full-page.png) | ![Mobile View](e2e/screenshots/07-mobile-view.png) |
 
 ## Architecture
 

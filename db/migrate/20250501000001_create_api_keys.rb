@@ -2,7 +2,7 @@
 
 class CreateApiKeys < ActiveRecord::Migration[7.1]
   def change
-    create_table :api_keys do |t|
+    create_table :api_keys, if_not_exists: true do |t|
       t.string :name, null: false
       t.string :key, null: false, index: { unique: true }
       t.text :description
@@ -16,7 +16,7 @@ class CreateApiKeys < ActiveRecord::Migration[7.1]
       t.timestamps
     end
 
-    add_index :api_keys, :expires_at
-    add_index :api_keys, :revoked_at
+    add_index :api_keys, :expires_at, if_not_exists: true
+    add_index :api_keys, :revoked_at, if_not_exists: true
   end
 end
